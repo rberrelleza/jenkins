@@ -62,3 +62,9 @@ default['jenkins']['http_proxy']['ssl']['ssl_listen_ports'] = [ 443 ]
 default['jenkins']['http_proxy']['ssl']['dir'] = "#{default['jenkins']['server']['home']}/ssl"
 default['jenkins']['http_proxy']['ssl']['cert_path'] = "#{default['jenkins']['http_proxy']['ssl']['dir']}/jenkins.cert"
 default['jenkins']['http_proxy']['ssl']['key_path'] = "#{default['jenkins']['http_proxy']['ssl']['dir']}/jenkins.key"
+
+default['jenkins']['ghprb']['server_api_url'] = nil
+default['jenkins']['ghprb']['username'] = nil
+default['jenkins']['ghprb']['password'] = nil
+default['jenkins']['ghprb']['accessToken'] = nil
+default['jenkins']['ghprb']['published_url'] = nil
