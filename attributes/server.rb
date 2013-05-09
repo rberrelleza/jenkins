@@ -66,5 +66,5 @@ default['jenkins']['http_proxy']['ssl']['key_path'] = "#{default['jenkins']['htt
 default['jenkins']['ghprb']['server_api_url'] = nil
 default['jenkins']['ghprb']['username'] = nil
 default['jenkins']['ghprb']['password'] = nil
-default['jenkins']['ghprb']['accessToken'] = nil
+default['jenkins']['ghprb']['access_token'] = nil
 default['jenkins']['ghprb']['published_url'] = nil
