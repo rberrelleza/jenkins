@@ -34,12 +34,14 @@ home_dir = node['jenkins']['server']['home']
 data_dir = node['jenkins']['server']['data_dir']
 plugins_dir = File.join(node['jenkins']['server']['data_dir'], "plugins")
 log_dir = node['jenkins']['server']['log_dir']
+ssh_dir = File.join(home_dir, ".ssh")
 
 [
   home_dir,
   data_dir,
   plugins_dir,
-  log_dir
+  log_dir,
+  ssh_dir
 ].each do |dir_name|
   directory dir_name do
     owner node['jenkins']['server']['user']
@@ -47,6 +49,20 @@ log_dir = node['jenkins']['server']['log_dir']
     mode '0700'
     recursive true
   end
+end
+
+execute "ssh-keygen -f #{File.join(ssh_dir, "id_rsa")} -N ''" do
+  user node['jenkins']['server']['user']
+  group node['jenkins']['server']['group']
+  not_if { File.exists?(File.join(ssh_dir, "id_rsa")) }
+  notifies :create, "ruby_block[store_server_ssh_pubkey]", :immediately
+end
+
+ruby_block "store_server_ssh_pubkey" do
+  block do
+    node.set['jenkins']['server']['pubkey'] = IO.read(File.join(ssh_dir, "id_rsa.pub"))
+  end
+  action :nothing
 end
 
 ruby_block "block_until_operational" do
@@ -76,13 +92,18 @@ node['jenkins']['server']['plugins'].each do |plugin|
     name = plugin
   end
 
-  remote_file File.join(plugins_dir, "#{name}.hpi") do
+  # Plugins installed from the Jenkins Update Center are written to disk with
+  # the `*.jpi` extension. Although plugins downloaded from the Jenkins Mirror
+  # have an `*.hpi` extension we will save the plugins with a `*.jpi` extension
+  # to match Update Center's behavior.
+  remote_file File.join(plugins_dir, "#{name}.jpi") do
     source "#{node['jenkins']['mirror']}/plugins/#{name}/#{version}/#{name}.hpi"
     owner node['jenkins']['server']['user']
     group node['jenkins']['server']['group']
     backup false
     action :create_if_missing
     notifies :restart, "runit_service[jenkins]"
+    notifies :create, "ruby_block[block_until_operational]"
   end
 end
 
@@ -92,6 +113,7 @@ remote_file File.join(home_dir, "jenkins.war") do
   owner node['jenkins']['server']['user']
   group node['jenkins']['server']['group']
   notifies :restart, "runit_service[jenkins]"
+  notifies :create, "ruby_block[block_until_operational]"
 end
 
 # Only restart if plugins were added
@@ -108,9 +130,12 @@ log "plugins updated, restarting jenkins" do
   end
   action :nothing
   notifies :restart, "runit_service[jenkins]"
+  notifies :create, "ruby_block[block_until_operational]"
 end
 
-runit_service "jenkins" do
-  action [:enable, :start]
+runit_service "jenkins"
+
+log "ensure jenkins is running" do
+  notifies :start, "runit_service[jenkins]", :immediately
   notifies :create, "ruby_block[block_until_operational]", :immediately
 end
